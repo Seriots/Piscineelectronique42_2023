@@ -22,9 +22,9 @@ int	FT_printf(uint16_t n)
 ISR(INT0_vect) {
 	cli(); //Disable global interrupt
 	n++;
-	EIFR |= (1 << INTF0); //Clear interrupt flag
 	FT_printf(n);
-	_delay_ms(30);
+	_delay_ms(1);
+	EIFR |= (1 << INTF0); //Clear interrupt flag
 	sei();
  // réactiver les interruptions
 }
@@ -34,9 +34,9 @@ ISR(PCINT2_vect) {
 	if (x == 0)
 	{
 		n--;
-		EIFR |= (1 << INTF1); //Clear interrupt flag
 		FT_printf(n);
-		_delay_ms(30);
+		_delay_ms(1);
+		//EIFR |= (1 << INTF1); //Clear interrupt flag
 		x = 1;
 	}
 	else

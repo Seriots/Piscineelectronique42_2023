@@ -20,8 +20,8 @@ int	FT_printf(long n)
 ISR(INT0_vect) {
 	cli(); //Disable global interrupt
 	PORTB ^= (1 << PB0);
+	_delay_ms(1);
 	EIFR |= (1 << INTF0); //Clear interrupt flag
-	_delay_ms(30);
 	sei();
  // réactiver les interruptions
 }

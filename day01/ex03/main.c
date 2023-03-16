@@ -10,7 +10,6 @@ int main()
     TCCR0A |= (1 << COM0A1) | (1 << COM0B1) | (1 << WGM01) | (1 << WGM00); // Fast PWM mode, non-inverting output on OC0B (PD5)
     TCCR0B |= (1 << CS01);  // Prescaler = 8
 
-    DDRD |= (1 << PD3);     // Set PD3 as output
     TCCR2A |= (1 << COM2B1) | (1 << WGM21) | (1 << WGM20); // Fast PWM mode, non-inverting output on OC2B (PD3)
     TCCR2B |= (1 << CS21);  // Prescaler = 8
 

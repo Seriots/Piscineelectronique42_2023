@@ -29,12 +29,7 @@ unsigned char uart_rx(void)
 	// wait for transmit buffer to be empty
 	// Attendre la réception d'un caractère
 
-	while (!(UCSR0A & (1 << RXC0)))
-	{
-	// Attente active
-	}
-	PORTB ^= 1 << PB0;
-	// Envoyer le caractère reçu sur le port série
+	while (!(UCSR0A & (1 << RXC0))) {}
 	return UDR0;
 }
 
@@ -53,15 +48,22 @@ void	uart_init(void)
 
 	// Turn on the transmission and reception circuitry
 
-	UCSR0B = (1 << TXEN0) | (1 << RXEN0);
+	UCSR0B = (1 << TXEN0) | (1 << RXEN0) | (1 << RXCIE0); //| (1 << TXCIE0)
 
 }
 
-ISR(PCINT2_vect)
+ISR(USART_RX_vect)
 {
-	unsigned char rchar = uart_rx();
+	cli();
+	unsigned char rchar = UDR0;
+
+	if (rchar >= 'A' && rchar <= 'Z')
+		rchar += 32;
+	else if (rchar >= 'a' && rchar <= 'z')
+		rchar -= 32;
 	uart_tx(rchar);
 	//uart_prinstr("hello world!?..//\r\n");
+	sei();
 }
 
 void main() {
@@ -84,8 +86,8 @@ void main() {
 	//set interrupt on timer1
 	TIMSK1 |= (1 << OCIE1A);
 
-	PCMSK2 |= 1 << PCINT16; //set interrupt on PCINT18
- 	PCICR |= (1 << PCIE2);
+	//PCMSK2 |= 1 << PCINT16; //set interrupt on PCINT18
+ 	//PCICR |= (1 << PCIE2);
 	
 	sei(); //Enable global interrupt
     

@@ -167,6 +167,7 @@ int main() {
 		_delay_ms(100); // wait for measurement to complete 80ms minimum
 
 		i2c_stop();
+		_delay_ms(40);
 		i2c_start();
 		//uart_printhex("Restart: ", TWSR, 1);
 		i2c_write(0x38<<1 | 1);
@@ -176,44 +177,39 @@ int main() {
 			_delay_ms(100);
 			TMP = i2c_read(1);
 		}
-		while ((TMP & 1<<7) == 0);
+		while ((TMP & 1<<7) != 0);
 		BUFFER[0] = TMP;
 
-		for (uint8_t j = 1; j < 7; j++)
+		for (uint8_t j = 1; j < 6; j++)
 		{
-			TMP = i2c_read((j==6 ? 0 : 1));
+			TMP = i2c_read((j==5 ? 0 : 1));
 			BUFFER[j] = TMP;
 		}
 		i2c_stop();
 		//uart_putstr("Buffer: ");
-		//uint32_t Srh = BUFFER[1] << 12 | BUFFER[2] << 4 | BUFFER[3] >> 4;
-		//uint32_t St = (((uint32_t)BUFFER[3] & 0b1111)) << 16 | BUFFER[4] << 8 | BUFFER[5];
+		int32_t Srh = BUFFER[1] << 12 | BUFFER[2] << 4 | (BUFFER[3] >> 4) & 0xf;
+		int32_t St = (((uint32_t)BUFFER[3] & 0b1111)) << 16 | BUFFER[4] << 8 | BUFFER[5];
 		//uart_printint32(Srh);
 		//uart_tx(' ');
 		//uart_printint32(St);
 		//uart_putstr("\n\r");
 
-		//double RH = (double)Srh / (double)((uint32_t)1 << 20) * 100.0;
-    	//double T = (double)St / (double)((uint32_t)1 << 20) * 200.0 - 50.0;
+		double RH = (double)Srh / (double)(0x100000) * 100.0;
+    	double T = (double)St / (double)(0x100000) * 200.0 - 50.0;
 
-		////char RHstr[20];
-		////sprintf(RHstr, "%.2f", RH);
-		////uart_putstr(RHstr);
-		//uart_printint32((uint32_t)RH);
-		//uart_tx(' ');
+		char RHstr[128];
+		sprintf(RHstr, "Humidite relative: %.2f%% Temperature: %.2f.C\n\r", RH, T);
+		uart_putstr(RHstr);
 
-		////char Tstr[20];
-		////sprintf(Tstr, "%.2f", T);
-		////uart_putstr(Tstr);
 		//uart_printint32((uint32_t)T);
 		//print("Humidité relative: {:.2f}%".format(RH))
 		//print("Température: {:.2f}°C".format(T))
-		for (int i = 0; i < 7; i++)
-		{
-			uart_printhex("", BUFFER[i], 0);
-			uart_tx(' ');
-		}
-		uart_putstr("\n\r");
+		//for (int i = 0; i < 6; i++)
+		//{
+		//	uart_printhex("", BUFFER[i], 0);
+		//	uart_tx(' ');
+		//}
+		//uart_putstr("\n\r");
 		_delay_ms(1000);
 	}
 

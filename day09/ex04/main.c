@@ -1,4 +1,4 @@
-0/* ************************************************************************** */
+/* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
 /*   main.c                                             :+:      :+:    :+:   */
@@ -6,7 +6,7 @@
 /*   By: lgiband <lgiband@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/03/13 11:42:27 by gtoubol           #+#    #+#             */
-/*   Updated: 2023/03/24 10:48:07 by lgiband          ###   ########.fr       */
+/*   Updated: 2023/03/24 11:38:34 by lgiband          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -81,7 +81,7 @@ uint8_t	get_value(uint8_t digit)
 	if (digit == 1 || digit == '1')
 		return (0x00 + TOP_RIGHT + BOTTOM_RIGHT);
 	if (digit == 2 || digit == '2')
-		return (0x00 + TOP + TOP_RIGHT + MIDDLE + BOTTOM_LEFT + BOTTOM);
+		return (0x00 + TOP + TOP_RIGHT + MIDDLE + BOTTOM_LEFT + BOTTOM + DOT);
 	if (digit == 3 || digit == '3')
 		return (0x00 + TOP + TOP_RIGHT + MIDDLE + BOTTOM_RIGHT + BOTTOM);
 	if (digit == 4 || digit == '4')
@@ -166,10 +166,12 @@ void	print_digit(uint8_t value, uint8_t digit)
 
 void	print_nbr(uint16_t nbr)
 {
-	(void)nbr;
-	print_digit(get_value((nbr / 1000) % 10), get_digit(1));
-	print_digit(get_value((nbr / 100) % 10), get_digit(2));
-	print_digit(get_value((nbr / 10) % 10), get_digit(3));
+	if ((nbr / 1000) > 0)
+		print_digit(get_value((nbr / 1000) % 10), get_digit(1));
+	if ((nbr / 100) > 0)
+		print_digit(get_value((nbr / 100) % 10), get_digit(2));
+	if ((nbr / 10) > 0)
+		print_digit(get_value((nbr / 10) % 10), get_digit(3));
 	print_digit(get_value((nbr) % 10), get_digit(4));
 }
 
@@ -235,7 +237,8 @@ int	main(void)
 		//_delay_ms(500);
 	while (1)
 	{
-		print_str((uint8_t*)"hihi 42 I am pyro the little robot", 0x8F);
+		print_nbr(42);
+		//print_str((uint8_t*)"hihi 42 I am pyro the little robot", 0x8F);
 		
 		//usart_dumpln("digit 1: ", get_digit(1), "\n\r");
 		//usart_dumpln("digit 1: ", get_digit(2), "\n\r");

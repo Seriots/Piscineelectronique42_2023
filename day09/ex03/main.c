@@ -1,4 +1,4 @@
-0/* ************************************************************************** */
+/* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
 /*   main.c                                             :+:      :+:    :+:   */
@@ -6,7 +6,7 @@
 /*   By: lgiband <lgiband@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/03/13 11:42:27 by gtoubol           #+#    #+#             */
-/*   Updated: 2023/03/24 10:48:07 by lgiband          ###   ########.fr       */
+/*   Updated: 2023/03/24 11:36:14 by lgiband          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,8 +26,7 @@
 #define MIDDLE 0x40
 #define DOT 0x80
 
-uint8_t data[4];
-uint8_t selected = 0;
+uint8_t state = 0;
 
 void	FT_printf(uint8_t n)
 {
@@ -80,6 +79,8 @@ uint8_t	get_value(uint8_t digit)
 		return (0x00 + TOP + TOP_RIGHT + BOTTOM_RIGHT + BOTTOM + BOTTOM_LEFT + TOP_LEFT);
 	if (digit == 1 || digit == '1')
 		return (0x00 + TOP_RIGHT + BOTTOM_RIGHT);
+	if (digit == '2')
+		return (0x00 + TOP + TOP_RIGHT + MIDDLE + BOTTOM_LEFT + BOTTOM + DOT);
 	if (digit == 2 || digit == '2')
 		return (0x00 + TOP + TOP_RIGHT + MIDDLE + BOTTOM_LEFT + BOTTOM);
 	if (digit == 3 || digit == '3')
@@ -164,9 +165,15 @@ void	print_digit(uint8_t value, uint8_t digit)
 	i2c_write(0x00);
 }
 
+void	print_digit_one_time(uint8_t value, uint8_t digit)
+{
+	i2c_clock_connect();
+	i2c_write(digit);
+	i2c_write(value);
+}
+
 void	print_nbr(uint16_t nbr)
 {
-	(void)nbr;
 	print_digit(get_value((nbr / 1000) % 10), get_digit(1));
 	print_digit(get_value((nbr / 100) % 10), get_digit(2));
 	print_digit(get_value((nbr / 10) % 10), get_digit(3));
@@ -194,7 +201,6 @@ int	display_str(uint8_t *buf, uint8_t new_char, uint8_t speed)
 	print_digit(get_value(buf[1]), get_digit(2));
 	print_digit(get_value(buf[0]), get_digit(1));
 	return (next);
-	
 }
 
 void	print_str(uint8_t *str, uint16_t speed)
@@ -213,13 +219,35 @@ void	print_str(uint8_t *str, uint16_t speed)
 	}
 }
 
+ISR(TIMER1_COMPA_vect)
+{
+	cli();
+	print_digit_one_time(get_value(state), get_digit(4));
+	state = (state + 1) % 10;
+	sei();
+}
+
+void	timer1_init()
+{
+	TCNT1 = 0; //Clear the timer
+
+	//TCNT1 = 0b0110000000001001;
+	TCCR1B |= (1 << CS10) | (1 << CS12); //set timing to 1024
+	OCR1A = 0b0011110100001001;//0001111010000101; //Set clock to match 7813 31250 = 0b
+	
+	//How to use Interrupts on the timer
+	TCCR1A |= (1 << COM1A0); // Toggle OC1A on Compare Match (on/off at each match) 
+	TCCR1B |= (1 << WGM12); //Set to CTC mode
+	TIMSK1 |= (1 << OCIE1A);
+}
+
 
 int	main(void)
 {
 	usart_init();
 	i2c_init();
 	//button_init();
-	//sei();
+	sei();
 
 	usart_printstr("Hello World\r\n");
 
@@ -227,19 +255,16 @@ int	main(void)
 	i2c_clock_clear();
 
 	i2c_clock_connect();
+	timer1_init();
 
 		//i2c_write(0x00);
 
 		//i2c_write(0xFF);
 
 		//_delay_ms(500);
+		//print_digit_one_time(get_value('2'), get_digit(4));
 	while (1)
 	{
-		print_str((uint8_t*)"hihi 42 I am pyro the little robot", 0x8F);
-		
-		//usart_dumpln("digit 1: ", get_digit(1), "\n\r");
-		//usart_dumpln("digit 1: ", get_digit(2), "\n\r");
-		//usart_dumpln("digit 1: ", get_digit(3), "\n\r");
-		//usart_dumpln("digit 1: ", get_digit(4), "\n\r");
+		//_delay_ms(1000);
 	}
 }

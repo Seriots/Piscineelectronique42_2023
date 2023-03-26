@@ -1,4 +1,4 @@
-0/* ************************************************************************** */
+/* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
 /*   main.c                                             :+:      :+:    :+:   */
@@ -6,7 +6,7 @@
 /*   By: lgiband <lgiband@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/03/13 11:42:27 by gtoubol           #+#    #+#             */
-/*   Updated: 2023/03/24 10:48:07 by lgiband          ###   ########.fr       */
+/*   Updated: 2023/03/24 11:33:14 by lgiband          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,6 +80,8 @@ uint8_t	get_value(uint8_t digit)
 		return (0x00 + TOP + TOP_RIGHT + BOTTOM_RIGHT + BOTTOM + BOTTOM_LEFT + TOP_LEFT);
 	if (digit == 1 || digit == '1')
 		return (0x00 + TOP_RIGHT + BOTTOM_RIGHT);
+	if (digit == '2')
+		return (0x00 + TOP + TOP_RIGHT + MIDDLE + BOTTOM_LEFT + BOTTOM + DOT);
 	if (digit == 2 || digit == '2')
 		return (0x00 + TOP + TOP_RIGHT + MIDDLE + BOTTOM_LEFT + BOTTOM);
 	if (digit == 3 || digit == '3')
@@ -164,9 +166,15 @@ void	print_digit(uint8_t value, uint8_t digit)
 	i2c_write(0x00);
 }
 
+void	print_digit_one_time(uint8_t value, uint8_t digit)
+{
+	i2c_clock_connect();
+	i2c_write(digit);
+	i2c_write(value);
+}
+
 void	print_nbr(uint16_t nbr)
 {
-	(void)nbr;
 	print_digit(get_value((nbr / 1000) % 10), get_digit(1));
 	print_digit(get_value((nbr / 100) % 10), get_digit(2));
 	print_digit(get_value((nbr / 10) % 10), get_digit(3));
@@ -194,7 +202,6 @@ int	display_str(uint8_t *buf, uint8_t new_char, uint8_t speed)
 	print_digit(get_value(buf[1]), get_digit(2));
 	print_digit(get_value(buf[0]), get_digit(1));
 	return (next);
-	
 }
 
 void	print_str(uint8_t *str, uint16_t speed)
@@ -212,6 +219,7 @@ void	print_str(uint8_t *str, uint16_t speed)
 		display_str(buf, -1, speed);
 	}
 }
+
 
 
 int	main(void)
@@ -233,13 +241,9 @@ int	main(void)
 		//i2c_write(0xFF);
 
 		//_delay_ms(500);
+		print_digit_one_time(get_value('2'), get_digit(4));
 	while (1)
 	{
-		print_str((uint8_t*)"hihi 42 I am pyro the little robot", 0x8F);
-		
-		//usart_dumpln("digit 1: ", get_digit(1), "\n\r");
-		//usart_dumpln("digit 1: ", get_digit(2), "\n\r");
-		//usart_dumpln("digit 1: ", get_digit(3), "\n\r");
-		//usart_dumpln("digit 1: ", get_digit(4), "\n\r");
+		_delay_ms(1000);
 	}
 }

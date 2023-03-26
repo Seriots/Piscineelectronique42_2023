@@ -1,4 +1,4 @@
-0/* ************************************************************************** */
+/* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
 /*   main.c                                             :+:      :+:    :+:   */
@@ -6,7 +6,7 @@
 /*   By: lgiband <lgiband@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/03/13 11:42:27 by gtoubol           #+#    #+#             */
-/*   Updated: 2023/03/24 10:48:07 by lgiband          ###   ########.fr       */
+/*   Updated: 2023/03/24 13:49:58 by lgiband          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,12 +26,131 @@
 #define MIDDLE 0x40
 #define DOT 0x80
 
-uint8_t data[4];
-uint8_t selected = 0;
+uint16_t state = 0;
 
-void	FT_printf(uint8_t n)
+void	FT_printf(long n)
 {
-	PORTB = (n & 1<<PB0) | (n & 1<<PB1) | (n & 1<<PB2) | (n<<1 & 1<<PB4);
+	PORTB &= ~(1 << PB0) & ~(1 << PB1) & ~(1 << PB2) & ~(1 << PB4);
+	switch (n)
+	{
+		case 4:
+			PORTB |= (1 << PB4);
+		case 3:
+			PORTB |= (1 << PB2);
+		case 2:
+			PORTB |= (1 << PB1);
+		case 1:
+			PORTB |= (1 << PB0);
+	}
+
+}
+
+void SPI_MasterInit(void)
+{
+	/* Set MOSI and SCK output, all others input */
+	DDRB |= (1<<DDB3)|(1<<DDB5)|(1<<DDB2);
+	/* Enable SPI, Master, set clock rate fck/16 */
+	SPCR = (1<<SPE)|(1<<MSTR)|(1<<SPR0);// | (1<<SPR1);
+}
+
+void SPI_MasterTransmit(uint8_t cData)
+{
+	/* Start transmission */
+	SPDR = cData;
+	/* Wait for transmission complete */
+	while(!(SPSR & (1<<SPIF)));
+}
+void	transmitLed(uint32_t data)
+{
+	SPI_MasterTransmit(data >> 24);
+	SPI_MasterTransmit(data >> 16);
+	SPI_MasterTransmit(data >> 8);
+	SPI_MasterTransmit(data);
+}
+
+void	boudary_frame(uint8_t bound)
+{
+	if (bound == 0)
+	{
+		SPI_MasterTransmit(0);
+		SPI_MasterTransmit(0);
+		SPI_MasterTransmit(0);
+		SPI_MasterTransmit(0);
+	}
+	else
+	{
+		SPI_MasterTransmit(0xFF);
+		SPI_MasterTransmit(0xFF);
+		SPI_MasterTransmit(0xFF);
+		SPI_MasterTransmit(0xFF);
+	}
+}
+void	init_rgb()
+{
+	TCCR0A |= (1 << COM0A1) | (1 << COM0B1) | (1 << WGM01) | (1 << WGM00); // Fast PWM mode, non-inverting output on OC0B (PD5)
+    TCCR0B |= (1 << CS01);  // Prescaler = 8
+
+    TCCR2A |= (1 << COM2B1) | (1 << WGM21) | (1 << WGM20); // Fast PWM mode, non-inverting output on OC2B (PD3)
+    TCCR2B |= (1 << CS21);  // Prescaler = 8
+}
+
+void set_rgb(uint8_t r, uint8_t g, uint8_t b)
+{
+	OCR0B = r;
+	OCR0A = g;
+	OCR2B = b;
+}
+
+void wheel(uint8_t pos) {
+	pos = 255 - pos;
+	if (pos < 85) {
+		set_rgb(255 - pos * 3, 0, pos * 3);
+	}
+	else if (pos < 170) {
+		pos = pos - 85;
+		set_rgb(0, pos * 3, 255 - pos * 3);
+	}
+	else {
+		pos = pos - 170;
+		set_rgb(pos * 3, 255 - pos * 3, 0);
+	}
+}
+
+void	set_spi_led(uint16_t value)
+{
+	boudary_frame(0);
+	if (value < 1023 / 3)
+		value = 3;
+	else if (value < (1023 / 3) * 2)
+		value = 2;
+	else if (value < 1023)
+		value = 1;
+	else
+		value = 0;
+	switch (value) {
+		case 0:
+			transmitLed(0xE100FF00);
+			transmitLed(0xE100FF00);
+			transmitLed(0xE100FF00);
+			break;
+		case 1:
+			transmitLed(0xE100A5FF);
+			transmitLed(0xE100A5FF);
+			transmitLed(0xE1000000);
+			break;
+		case 2:
+			transmitLed(0xE10000FF);
+			transmitLed(0xE1000000);
+			transmitLed(0xE1000000);
+			break;
+		case 3:
+			transmitLed(0xE1000000);
+			transmitLed(0xE1000000);
+			transmitLed(0xE1000000);
+			break;
+	}
+	boudary_frame(1);
+	
 }
 
 void	i2c_clock_clear(void)
@@ -80,6 +199,8 @@ uint8_t	get_value(uint8_t digit)
 		return (0x00 + TOP + TOP_RIGHT + BOTTOM_RIGHT + BOTTOM + BOTTOM_LEFT + TOP_LEFT);
 	if (digit == 1 || digit == '1')
 		return (0x00 + TOP_RIGHT + BOTTOM_RIGHT);
+	if (digit == '2')
+		return (0x00 + TOP + TOP_RIGHT + MIDDLE + BOTTOM_LEFT + BOTTOM + DOT);
 	if (digit == 2 || digit == '2')
 		return (0x00 + TOP + TOP_RIGHT + MIDDLE + BOTTOM_LEFT + BOTTOM);
 	if (digit == 3 || digit == '3')
@@ -164,12 +285,21 @@ void	print_digit(uint8_t value, uint8_t digit)
 	i2c_write(0x00);
 }
 
+void	print_digit_one_time(uint8_t value, uint8_t digit)
+{
+	i2c_clock_connect();
+	i2c_write(digit);
+	i2c_write(value);
+}
+
 void	print_nbr(uint16_t nbr)
 {
-	(void)nbr;
-	print_digit(get_value((nbr / 1000) % 10), get_digit(1));
-	print_digit(get_value((nbr / 100) % 10), get_digit(2));
-	print_digit(get_value((nbr / 10) % 10), get_digit(3));
+	if ((nbr / 1000) > 0)
+		print_digit(get_value((nbr / 1000) % 10), get_digit(1));
+	if ((nbr / 100) > 0)
+		print_digit(get_value((nbr / 100) % 10), get_digit(2));
+	if ((nbr / 10) > 0)
+		print_digit(get_value((nbr / 10) % 10), get_digit(3));
 	print_digit(get_value((nbr) % 10), get_digit(4));
 }
 
@@ -194,7 +324,6 @@ int	display_str(uint8_t *buf, uint8_t new_char, uint8_t speed)
 	print_digit(get_value(buf[1]), get_digit(2));
 	print_digit(get_value(buf[0]), get_digit(1));
 	return (next);
-	
 }
 
 void	print_str(uint8_t *str, uint16_t speed)
@@ -213,33 +342,88 @@ void	print_str(uint8_t *str, uint16_t speed)
 	}
 }
 
+//ISR(TIMER1_COMPA_vect)
+//{
+//	cli();
+//	state = (state + 1) % 10000;
+//	sei();
+//}
+
+void	timer1_init()
+{
+	TCNT1 = 0; //Clear the timer
+
+	//TCNT1 = 0b0110000000001001;
+	TCCR1B |= (1 << CS10) | (1 << CS12); //set timing to 1024
+	OCR1A = 0b0011110100001001;//0001111010000101; //Set clock to match 7813 31250 = 0b
+	
+	//How to use Interrupts on the timer
+	TCCR1A |= (1 << COM1A0); // Toggle OC1A on Compare Match (on/off at each match) 
+	TCCR1B |= (1 << WGM12); //Set to CTC mode
+	TIMSK1 |= (1 << OCIE1A);
+}
+
+void adc_init() {
+	// Configurer la référence ADC sur AVCC
+	ADMUX |= (1 << REFS0);// | (1 << ADLAR);
+
+	// Configurer la résolution ADC à 8 bits
+	ADCSRA |=  (1 << ADPS0) | (1 << ADPS1) | (1 << ADPS2);
+
+	// Configurer la broche d'entrée ADC sur PC0
+	//ADMUX |= (1 << MUX1);
+	ADMUX &= ~(1 << MUX3);
+	ADMUX &= ~(1 << MUX2);
+	ADMUX &= ~(1 << MUX1);
+	ADMUX &= ~(1 << MUX0);			
+
+	// Activer l'ADC
+	ADCSRA |= (1 << ADEN) | (1 << ADATE);
+	//ADCSRB |= (1 << ADTS0);// | (1 << ADTS1) | (1 << ADTS2);
+
+	// Démarrer une conversion ADC
+	//ADCSRA |= (1 << ADSC);
+
+	//// Attendre la fin de la conversion
+	//while (ADCSRA & (1 << ADSC));
+	ADCSRA |= (1 << ADSC);
+}
 
 int	main(void)
 {
 	usart_init();
 	i2c_init();
+	adc_init();
 	//button_init();
-	//sei();
+	init_rgb();
+	SPI_MasterInit();
+	sei();
 
 	usart_printstr("Hello World\r\n");
+	
+	DDRB |= 1 << PB0 | 1 << PB1 | 1 << PB2 | 1 << PB4;
+	DDRD |= 1 << PD3 | 1 << PD5 | 1 << PD6;
 
 	i2c_clock_init();
 	i2c_clock_clear();
 
 	i2c_clock_connect();
+	//timer1_init();
 
 		//i2c_write(0x00);
 
 		//i2c_write(0xFF);
 
 		//_delay_ms(500);
+		//print_digit_one_time(get_value('2'), get_digit(4));
 	while (1)
 	{
-		print_str((uint8_t*)"hihi 42 I am pyro the little robot", 0x8F);
-		
-		//usart_dumpln("digit 1: ", get_digit(1), "\n\r");
-		//usart_dumpln("digit 1: ", get_digit(2), "\n\r");
-		//usart_dumpln("digit 1: ", get_digit(3), "\n\r");
-		//usart_dumpln("digit 1: ", get_digit(4), "\n\r");
+			state = ADCL;
+			state = (state) | (((uint16_t)ADCH) << 8);
+			wheel(state / 4);
+			FT_printf((state + 1) / 256);
+			set_spi_led(state);
+			//print_nbr(state);
+			print_str((uint8_t*)"hihi 42 I am pyro the little robot", 0x8F);
 	}
 }
